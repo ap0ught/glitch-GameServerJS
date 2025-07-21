@@ -4,12 +4,23 @@ This document provides a deep technical dive into the architecture of the Glitch
 
 ## Overview
 
-The Glitch server is built as a **message-driven JavaScript application** running on the Rhino JavaScript engine within a Java environment. The architecture emphasizes:
+The Glitch server is built as a **message-driven JavaScript application** running on the Rhino JavaScript engine within a Java environment, designed to work seamlessly with the [Glitch Flash Client](https://github.com/ap0ught/glitch-client). The architecture emphasizes:
 
-- **Event-driven processing** for all player interactions
-- **Modular component design** with clear separation of concerns  
-- **Data-driven configuration** for different environments
-- **Extensible scripting system** for content creation
+- **Event-driven processing** for all player interactions - *Essential for real-time MMO responsiveness*
+- **Modular component design** with clear separation of concerns - *Enables independent development and testing*
+- **Data-driven configuration** for different environments - *Supports dev/test/production deployments*
+- **Extensible scripting system** for content creation - *Allows rapid content iteration without core changes*
+- **Client-server state synchronization** - *Maintains consistent game world across all players*
+
+### Architectural Significance
+
+This design demonstrates several key principles crucial for MMO development:
+
+1. **Authoritative Server Architecture**: All game logic runs server-side, with the Flash client serving as a presentation layer
+2. **Message-Based Communication**: Enables loose coupling between client and server systems
+3. **Horizontal Scalability**: Event-driven processing allows for distributed server architectures
+4. **Security by Design**: Client actions are validated server-side, preventing common exploits
+5. **Operational Excellence**: Built-in administrative tools and monitoring capabilities
 
 ## Core Architecture Components
 
@@ -25,11 +36,39 @@ function processMessage(pc, msg){
 ```
 
 **Message Types Handled:**
-- **Movement**: `move_vec`, `move_xy`, `signpost_move_start/end`, `door_move_start/end`
-- **Authentication**: `login_start/end`, `relogin_start/end`
-- **Item Interaction**: `itemstack_verb`, `itemstack_menu_up`, `itemstack_inspect`
-- **Communication**: `local_chat`, `local_chat_start`
-- **Administration**: `edit_location` (god mode only)
+- **Movement**: `move_vec`, `move_xy`, `signpost_move_start/end`, `door_move_start/end` - *Real-time position synchronization*
+- **Authentication**: `login_start/end`, `relogin_start/end` - *Secure player session management*
+- **Item Interaction**: `itemstack_verb`, `itemstack_menu_up`, `itemstack_inspect` - *Rich object interaction system*
+- **Communication**: `local_chat`, `local_chat_start` - *Social interaction and community features*
+- **Administration**: `edit_location` (god mode only) - *Live world editing and content management*
+
+### Client-Server Communication Architecture
+
+The server's message processing system is specifically designed to work with the ActionScript 3 Flash client, demonstrating a complete MMO communication protocol:
+
+```javascript
+// Example: Item interaction flow from client to server
+case 'itemstack_verb':
+    // 1. Validate client message structure
+    if (!msg.itemstack_tsid || !msg.verb) return;
+    
+    // 2. Server-side permission checking
+    var item = pc.getInventoryItem(msg.itemstack_tsid);
+    if (!item || !item.hasVerb(msg.verb)) return;
+    
+    // 3. Execute authoritative game logic
+    var result = item.performVerb(pc, msg.verb);
+    
+    // 4. Broadcast state changes to relevant clients
+    pc.sendItemstackUpdate(item);
+    return result;
+```
+
+**Key Architectural Benefits:**
+- **Security**: All game logic validation happens server-side
+- **Consistency**: Single source of truth for game state
+- **Scalability**: Stateless message processing enables horizontal scaling
+- **Debugging**: Complete audit trail of all player actions
 
 ### Player Context (PC) System
 
